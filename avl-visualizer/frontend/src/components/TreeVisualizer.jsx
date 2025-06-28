@@ -1,10 +1,27 @@
 import { motion } from "framer-motion";
+import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 
-// Recursive Tree Node Component
+/**
+ * @typedef {Object} TreeNodeData
+ * @property {number} val
+ * @property {TreeNodeData|null} left
+ * @property {TreeNodeData|null} right
+ */
+
+/**
+ * @typedef {Object} TreeNodeProps
+ * @property {TreeNodeData} node
+ * @property {number} x
+ * @property {number} y
+ * @property {number} level
+ * @property {number|null} parentX
+ * @property {number|null} parentY
+ */
+
 function TreeNode({ node, x, y, level, parentX, parentY }) {
   if (!node) return null;
 
-  const dx = 150 / (level + 1);
+  const dx = 180 * Math.pow(0.6, level);
   const dy = 90;
 
   const leftX = x - dx;
@@ -13,7 +30,6 @@ function TreeNode({ node, x, y, level, parentX, parentY }) {
 
   return (
     <>
-      {/* Line to parent */}
       {parentX !== null && (
         <motion.line
           x1={parentX}
@@ -28,15 +44,31 @@ function TreeNode({ node, x, y, level, parentX, parentY }) {
         />
       )}
 
-      {/* Recursively draw left/right children */}
-      <TreeNode node={node.left} x={leftX} y={nextY} level={level + 1} parentX={x} parentY={y} />
-      <TreeNode node={node.right} x={rightX} y={nextY} level={level + 1} parentX={x} parentY={y} />
+      {node.left && (
+        <TreeNode
+          node={node.left}
+          x={leftX}
+          y={nextY}
+          level={level + 1}
+          parentX={x}
+          parentY={y}
+        />
+      )}
+      {node.right && (
+        <TreeNode
+          node={node.right}
+          x={rightX}
+          y={nextY}
+          level={level + 1}
+          parentX={x}
+          parentY={y}
+        />
+      )}
 
-      {/* Node circle and text */}
       <motion.circle
         cx={x}
         cy={y}
-        r={18}
+        r={20}
         fill="#4f46e5"
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
@@ -44,7 +76,7 @@ function TreeNode({ node, x, y, level, parentX, parentY }) {
       />
       <motion.text
         x={x}
-        y={y + 5}
+        y={y + 6}
         textAnchor="middle"
         fill="white"
         fontSize="14"
@@ -55,6 +87,11 @@ function TreeNode({ node, x, y, level, parentX, parentY }) {
   );
 }
 
+/**
+ * @typedef {Object} TreeVisualizerProps
+ * @property {string} data
+ */
+
 export default function TreeVisualizer({ data }) {
   if (!data) return null;
 
@@ -62,19 +99,41 @@ export default function TreeVisualizer({ data }) {
   try {
     parsed = JSON.parse(data);
   } catch {
-    return <p className="text-red-500">Invalid Tree JSON</p>;
+    return <p className="text-red-500 p-4">❌ Invalid Tree JSON</p>;
   }
 
   return (
-    <svg width="100%" height="500" className="bg-white rounded border">
-      <TreeNode
-        node={parsed}
-        x={window.innerWidth / 2}
-        y={50}
-        level={0}
-        parentX={null}
-        parentY={null}
-      />
-    </svg>
-  );
+   <TransformWrapper
+      options={{ limitToBounds: false }} // Allow free panning/zooming outside bounds
+      pan={{ disabled: false }}         // Enable drag/pan
+      pinch={{ disabled: false }}       // Enable pinch zoom
+      wheel={{ step: 50 }}              // Set zoom sensitivity with mouse wheel
+      doubleClick={{ disabled: true }}  // Disable zoom on double click
+      centerOnInit                      // Automatically center on load
+      minScale={0.9}                    // Prevent too much zoom-out
+      maxScale={3}                      // Prevent too much zoom-in
+    >
+      <TransformComponent wrapperClass="w-full h-full">
+        {/* Center SVG in parent using flexbox */}
+        <div className="w-full h-full flex justify-center items-start">
+          <svg
+            width="1600"               // Initial width (can adjust as needed)
+            height="800"              // Initial height
+            viewBox="0 0 1600 800"    // Logical coordinate system for scaling
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <TreeNode
+              node={parsed}           // Root node to start rendering from
+              x={800}                 // Center X coordinate (half of width)
+              y={50}                  // Starting Y coordinate
+              level={0}               // Root is at level 0
+              parentX={null}          // No parent for root
+              parentY={null}
+            />
+          </svg>
+        </div>
+      </TransformComponent>
+    </TransformWrapper>
+);
+
 }
